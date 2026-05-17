@@ -1,0 +1,89 @@
+# ─────────────────────────────────────
+# BACKEND - Spring Boot / Java / Maven
+# ─────────────────────────────────────
+
+# Maven build output
+backend/target/
+target/
+
+# Maven wrapper jar
+.mvn/wrapper/maven-wrapper.jar
+
+# Compiled Java files
+*.class
+
+# JAR and WAR files
+*.jar
+*.war
+*.ear
+*.nar
+
+# Log files
+backend/logs/
+logs/
+*.log
+
+# Application secrets (NEVER commit these!)
+backend/src/main/resources/application-prod.properties
+backend/src/main/resources/application-local.properties
+backend/src/main/resources/application-secret.properties
+
+# ─────────────────────────────────────
+# FRONTEND - React / Node.js
+# ─────────────────────────────────────
+
+# Node modules (very large folder!)
+frontend/node_modules/
+node_modules/
+
+# React build output
+frontend/build/
+frontend/dist/
+
+# Environment variables (contains secrets!)
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+.env
+.env.local
+
+# ─────────────────────────────────────
+# VS CODE
+# ─────────────────────────────────────
+.vscode/settings.json
+.vscode/launch.json
+.vscode/*.code-workspace
+
+# ─────────────────────────────────────
+# OPERATING SYSTEM FILES
+# ─────────────────────────────────────
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Mac
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ─────────────────────────────────────
+# IDEs
+# ─────────────────────────────────────
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Eclipse
+.project
+.classpath
+.settings/
+
+# NetBeans
+nbproject/
