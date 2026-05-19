@@ -11,6 +11,12 @@ function Contacts() {
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
+  // Import states
+  const [importing, setImporting] =
+    useState(false);
+  const [importResult, setImportResult] =
+    useState(null);
+
   // Modal states
   const [showCreate, setShowCreate] =
     useState(false);
@@ -38,7 +44,7 @@ function Contacts() {
   const [formError, setFormError] =
     useState('');
 
-  // Fetch contacts
+  // ─── FETCH CONTACTS ───────────────────────
   const fetchContacts = useCallback(async () => {
     setLoading(true);
     try {
@@ -62,27 +68,83 @@ function Contacts() {
     fetchContacts();
   }, [fetchContacts]);
 
-  // Search with debounce
+  // ─── SEARCH ───────────────────────────────
   const handleSearch = (e) => {
     setSearch(e.target.value);
     setPage(0);
   };
 
-  // Get initials for avatar
+  // ─── EXPORT ───────────────────────────────
+  const handleExport = async () => {
+    try {
+      const response = await api.get(
+        '/contacts/export',
+        { responseType: 'blob' }
+      );
+
+      const url = window.URL
+        .createObjectURL(
+          new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute(
+        'download', 'contacts.csv');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+    } catch (err) {
+      setError('Failed to export contacts');
+    }
+  };
+
+  // ─── IMPORT ───────────────────────────────
+  const handleImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setImporting(true);
+    setImportResult(null);
+    setError('');
+
+    const data = new FormData();
+    data.append('file', file);
+
+    try {
+      const response = await api.post(
+        '/contacts/import', data, {
+          headers: {
+            'Content-Type':
+              'multipart/form-data'
+          }
+        });
+      setImportResult(response.data);
+      fetchContacts();
+    } catch (err) {
+      setError(
+        err.response?.data?.error ||
+        'Failed to import contacts');
+    } finally {
+      setImporting(false);
+      e.target.value = '';
+    }
+  };
+
+  // ─── GET INITIALS ─────────────────────────
   const getInitials = (contact) => {
     return `${contact.firstName?.[0] || ''}
       ${contact.lastName?.[0] || ''}`
       .trim().toUpperCase();
   };
 
-  // Open Create Modal
+  // ─── OPEN MODALS ──────────────────────────
   const openCreate = () => {
     setFormData(emptyForm);
     setFormError('');
     setShowCreate(true);
   };
 
-  // Open Edit Modal
   const openEdit = (contact) => {
     setSelectedContact(contact);
     setFormData({
@@ -102,13 +164,12 @@ function Contacts() {
     setShowEdit(true);
   };
 
-  // Open Delete Modal
   const openDelete = (contact) => {
     setSelectedContact(contact);
     setShowDelete(true);
   };
 
-  // Handle form field change
+  // ─── FORM HANDLERS ────────────────────────
   const handleFormChange = (e) => {
     setFormData({
       ...formData,
@@ -116,71 +177,49 @@ function Contacts() {
     });
   };
 
-  // Handle email change
-  const handleEmailChange = (index, field,
-      value) => {
+  const handleEmailChange = (i, f, v) => {
     const updated = [...formData.emailAddresses];
-    updated[index][field] = value;
+    updated[i][f] = v;
     setFormData({
-      ...formData,
-      emailAddresses: updated
-    });
+      ...formData, emailAddresses: updated });
   };
 
-  // Handle phone change
-  const handlePhoneChange = (index, field,
-      value) => {
+  const handlePhoneChange = (i, f, v) => {
     const updated = [...formData.phoneNumbers];
-    updated[index][field] = value;
+    updated[i][f] = v;
     setFormData({
-      ...formData,
-      phoneNumbers: updated
-    });
+      ...formData, phoneNumbers: updated });
   };
 
-  // Add email field
-  const addEmail = () => {
-    setFormData({
-      ...formData,
-      emailAddresses: [
-        ...formData.emailAddresses,
-        { email: '', label: 'work' }
-      ]
-    });
-  };
+  const addEmail = () => setFormData({
+    ...formData,
+    emailAddresses: [
+      ...formData.emailAddresses,
+      { email: '', label: 'work' }]
+  });
 
-  // Add phone field
-  const addPhone = () => {
-    setFormData({
-      ...formData,
-      phoneNumbers: [
-        ...formData.phoneNumbers,
-        { number: '', label: 'work' }
-      ]
-    });
-  };
+  const addPhone = () => setFormData({
+    ...formData,
+    phoneNumbers: [
+      ...formData.phoneNumbers,
+      { number: '', label: 'work' }]
+  });
 
-  // Remove email field
-  const removeEmail = (index) => {
-    setFormData({
-      ...formData,
-      emailAddresses:
-        formData.emailAddresses.filter(
-          (_, i) => i !== index)
-    });
-  };
+  const removeEmail = (i) => setFormData({
+    ...formData,
+    emailAddresses:
+      formData.emailAddresses.filter(
+        (_, idx) => idx !== i)
+  });
 
-  // Remove phone field
-  const removePhone = (index) => {
-    setFormData({
-      ...formData,
-      phoneNumbers:
-        formData.phoneNumbers.filter(
-          (_, i) => i !== index)
-    });
-  };
+  const removePhone = (i) => setFormData({
+    ...formData,
+    phoneNumbers:
+      formData.phoneNumbers.filter(
+        (_, idx) => idx !== i)
+  });
 
-  // Create Contact
+  // ─── CRUD OPERATIONS ──────────────────────
   const handleCreate = async (e) => {
     e.preventDefault();
     setFormLoading(true);
@@ -198,7 +237,6 @@ function Contacts() {
     }
   };
 
-  // Update Contact
   const handleUpdate = async (e) => {
     e.preventDefault();
     setFormLoading(true);
@@ -218,7 +256,6 @@ function Contacts() {
     }
   };
 
-  // Delete Contact
   const handleDelete = async () => {
     setFormLoading(true);
     try {
@@ -233,7 +270,7 @@ function Contacts() {
     }
   };
 
-  // Reusable Contact Form
+  // ─── CONTACT FORM COMPONENT ───────────────
   const ContactForm = ({ onSubmit }) => (
     <form onSubmit={onSubmit}>
       {formError && (
@@ -242,7 +279,6 @@ function Contacts() {
         </div>
       )}
 
-      {/* Name Row */}
       <div className="row mb-3">
         <div className="col">
           <label className="form-label
@@ -275,51 +311,46 @@ function Contacts() {
         </div>
       </div>
 
-      {/* Title */}
       <div className="mb-3">
         <label className="form-label
-          fw-semibold">
-          Title
-        </label>
+          fw-semibold">Title</label>
         <input
           type="text"
           name="title"
           className="form-control"
-          placeholder="e.g. Manager, Developer"
+          placeholder="e.g. Manager"
           value={formData.title}
           onChange={handleFormChange}
         />
       </div>
 
-      {/* Email Addresses */}
+      {/* Emails */}
       <div className="mb-3">
         <label className="form-label
           fw-semibold">
           Email Addresses
         </label>
         {formData.emailAddresses.map(
-          (email, index) => (
-          <div key={index}
+          (em, i) => (
+          <div key={i}
             className="d-flex gap-2 mb-2">
             <input
               type="email"
               className="form-control"
               placeholder="email@example.com"
-              value={email.email}
+              value={em.email}
               onChange={(e) =>
                 handleEmailChange(
-                  index, 'email',
-                  e.target.value)}
+                  i, 'email', e.target.value)}
             />
             <select
               className="form-select"
-              style={{width: '120px',
-                flexShrink: 0}}
-              value={email.label}
+              style={{width:'120px',
+                flexShrink:0}}
+              value={em.label}
               onChange={(e) =>
                 handleEmailChange(
-                  index, 'label',
-                  e.target.value)}>
+                  i, 'label', e.target.value)}>
               <option value="work">Work</option>
               <option value="personal">
                 Personal
@@ -330,15 +361,13 @@ function Contacts() {
               > 1 && (
               <button type="button"
                 className="btn btn-outline-danger"
-                onClick={() =>
-                  removeEmail(index)}>
+                onClick={() => removeEmail(i)}>
                 ✕
               </button>
             )}
           </div>
         ))}
-        <button
-          type="button"
+        <button type="button"
           className="btn btn-outline-secondary
             btn-sm"
           onClick={addEmail}>
@@ -346,35 +375,32 @@ function Contacts() {
         </button>
       </div>
 
-      {/* Phone Numbers */}
+      {/* Phones */}
       <div className="mb-4">
         <label className="form-label
           fw-semibold">
           Phone Numbers
         </label>
-        {formData.phoneNumbers.map(
-          (phone, index) => (
-          <div key={index}
+        {formData.phoneNumbers.map((ph, i) => (
+          <div key={i}
             className="d-flex gap-2 mb-2">
             <input
               type="text"
               className="form-control"
               placeholder="+923001234567"
-              value={phone.number}
+              value={ph.number}
               onChange={(e) =>
                 handlePhoneChange(
-                  index, 'number',
-                  e.target.value)}
+                  i, 'number', e.target.value)}
             />
             <select
               className="form-select"
-              style={{width: '120px',
-                flexShrink: 0}}
-              value={phone.label}
+              style={{width:'120px',
+                flexShrink:0}}
+              value={ph.label}
               onChange={(e) =>
                 handlePhoneChange(
-                  index, 'label',
-                  e.target.value)}>
+                  i, 'label', e.target.value)}>
               <option value="work">Work</option>
               <option value="home">Home</option>
               <option value="personal">
@@ -386,15 +412,13 @@ function Contacts() {
               > 1 && (
               <button type="button"
                 className="btn btn-outline-danger"
-                onClick={() =>
-                  removePhone(index)}>
+                onClick={() => removePhone(i)}>
                 ✕
               </button>
             )}
           </div>
         ))}
-        <button
-          type="button"
+        <button type="button"
           className="btn btn-outline-secondary
             btn-sm"
           onClick={addPhone}>
@@ -402,14 +426,13 @@ function Contacts() {
         </button>
       </div>
 
-      {/* Form Buttons */}
       <div className="d-flex gap-2
         justify-content-end">
         <button
           type="button"
           className="btn btn-outline-secondary"
-          style={{borderRadius: '8px',
-            padding: '10px 20px'}}
+          style={{borderRadius:'8px',
+            padding:'10px 20px'}}
           onClick={() => {
             setShowCreate(false);
             setShowEdit(false);
@@ -423,11 +446,11 @@ function Contacts() {
           style={{
             background:
               'linear-gradient(135deg, #667eea, #764ba2)',
-            color: 'white',
-            borderRadius: '8px',
-            padding: '10px 20px',
-            border: 'none',
-            fontWeight: '600'
+            color:'white',
+            borderRadius:'8px',
+            padding:'10px 20px',
+            border:'none',
+            fontWeight:'600'
           }}>
           {formLoading ? (
             <>
@@ -441,27 +464,110 @@ function Contacts() {
     </form>
   );
 
+  // ─── RENDER ───────────────────────────────
   return (
     <div className="dashboard-container">
       <Navbar />
 
       <div className="content-area">
 
-        {/* Header */}
+        {/* ── Header ── */}
         <div className="d-flex
           justify-content-between
-          align-items-center mb-4">
+          align-items-center mb-4
+          flex-wrap gap-2">
           <h4 className="fw-bold mb-0">
             📋 My Contacts
           </h4>
-          <button
-            onClick={openCreate}
-            className="btn-add">
-            + Add Contact
-          </button>
+          <div className="d-flex gap-2
+            flex-wrap">
+
+            {/* Export Button */}
+            <button
+              onClick={handleExport}
+              className="btn"
+              style={{
+                background:'#28a745',
+                color:'white',
+                borderRadius:'8px',
+                padding:'10px 16px',
+                border:'none',
+                fontWeight:'600'
+              }}>
+              📥 Export CSV
+            </button>
+
+            {/* Import Button */}
+            <label
+              className="btn mb-0"
+              style={{
+                background:'#17a2b8',
+                color:'white',
+                borderRadius:'8px',
+                padding:'10px 16px',
+                border:'none',
+                fontWeight:'600',
+                cursor:'pointer'
+              }}>
+              {importing ? (
+                <>
+                  <span className="
+                    spinner-border
+                    spinner-border-sm me-2"/>
+                  Importing...
+                </>
+              ) : '📤 Import CSV'}
+              <input
+                type="file"
+                accept=".csv"
+                style={{display:'none'}}
+                onChange={handleImport}
+                disabled={importing}
+              />
+            </label>
+
+            {/* Add Contact */}
+            <button
+              onClick={openCreate}
+              className="btn-add">
+              + Add Contact
+            </button>
+          </div>
         </div>
 
-        {/* Search Bar */}
+        {/* ── Import Result ── */}
+        {importResult && (
+          <div className="alert alert-success
+            d-flex justify-content-between
+            align-items-start">
+            <div>
+              ✅ Import complete!{' '}
+              <strong>
+                {importResult.imported}
+              </strong> imported,{' '}
+              <strong>
+                {importResult.skipped}
+              </strong> skipped.
+              {importResult.errors?.length
+                > 0 && (
+                <ul className="mt-2 mb-0">
+                  {importResult.errors
+                    .map((e, i) => (
+                    <li key={i}>
+                      <small>{e}</small>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <button
+              className="btn-close"
+              onClick={() =>
+                setImportResult(null)}/>
+          </div>
+        )}
+
+        {/* ── Search ── */}
         <div className="search-bar">
           <input
             type="text"
@@ -472,26 +578,48 @@ function Contacts() {
           />
         </div>
 
-        {/* Error */}
+        {/* ── CSV Format Helper ── */}
+        <div className="alert"
+          style={{
+            background:'#f8f9fa',
+            border:'1px dashed #dee2e6',
+            borderRadius:'8px',
+            fontSize:'13px',
+            color:'#666',
+            marginBottom:'16px'
+          }}>
+          📄 <strong>CSV Format:</strong>{' '}
+          First Name, Last Name, Title,
+          Email 1, Email 1 Label, Email 2,
+          Email 2 Label, Phone 1,
+          Phone 1 Label, Phone 2,
+          Phone 2 Label
+        </div>
+
+        {/* ── Error ── */}
         {error && (
           <div className="alert alert-danger">
             ⚠️ {error}
+            <button
+              className="btn-close float-end"
+              onClick={() => setError('')}/>
           </div>
         )}
 
-        {/* Loading */}
+        {/* ── Loading ── */}
         {loading ? (
           <div className="text-center mt-5">
             <div className="spinner-border"
-              style={{color: '#667eea'}}/>
+              style={{color:'#667eea'}}/>
             <p className="mt-2 text-muted">
               Loading contacts...
             </p>
           </div>
+
         ) : contacts.length === 0 ? (
-          /* Empty State */
+          /* ── Empty State ── */
           <div className="text-center mt-5">
-            <div style={{fontSize: '64px'}}>
+            <div style={{fontSize:'64px'}}>
               📭
             </div>
             <h5 className="text-muted mt-3">
@@ -501,13 +629,21 @@ function Contacts() {
             </h5>
             <p className="text-muted">
               {search
-                ? 'Try a different search term'
-                : 'Click "+ Add Contact" to start'}
+                ? 'Try different search'
+                : 'Click "+ Add Contact"'}
             </p>
           </div>
+
         ) : (
-          /* Contact List */
+          /* ── Contact List ── */
           <>
+            <p className="text-muted mb-3">
+              <small>
+                Showing {contacts.length} contact
+                {contacts.length !== 1 ? 's' : ''}
+              </small>
+            </p>
+
             {contacts.map(contact => (
               <div key={contact.id}
                 className="contact-card d-flex
@@ -516,30 +652,24 @@ function Contacts() {
 
                 <div className="d-flex
                   align-items-center gap-3">
-                  {/* Avatar */}
                   <div className="contact-avatar">
                     {getInitials(contact)}
                   </div>
-
-                  {/* Info */}
                   <div>
-                    <h6 className="mb-0
-                      fw-bold">
+                    <h6 className="mb-0 fw-bold">
                       {contact.firstName}{' '}
                       {contact.lastName}
                     </h6>
                     {contact.title && (
-                      <small className="
-                        text-muted">
-                        {contact.title}
+                      <small className="text-muted">
+                        💼 {contact.title}
                       </small>
                     )}
                     {contact.emailAddresses
                       ?.[0] && (
                       <div>
                         <small style={{
-                          color: '#667eea'
-                        }}>
+                          color:'#667eea'}}>
                           📧{' '}
                           {contact
                             .emailAddresses[0]
@@ -562,17 +692,16 @@ function Contacts() {
                   </div>
                 </div>
 
-                {/* Action Buttons */}
                 <div className="d-flex gap-2">
                   <button
                     onClick={() =>
                       openEdit(contact)}
                     className="btn btn-sm"
                     style={{
-                      background: '#f0f0f0',
-                      borderRadius: '8px',
-                      border: 'none',
-                      padding: '8px 16px'
+                      background:'#f0f0f0',
+                      borderRadius:'8px',
+                      border:'none',
+                      padding:'8px 16px'
                     }}>
                     ✏️ Edit
                   </button>
@@ -582,15 +711,14 @@ function Contacts() {
                     className="btn btn-sm
                       btn-outline-danger"
                     style={{
-                      borderRadius: '8px'
-                    }}>
+                      borderRadius:'8px'}}>
                     🗑️ Delete
                   </button>
                 </div>
               </div>
             ))}
 
-            {/* Pagination */}
+            {/* ── Pagination ── */}
             {totalPages > 1 && (
               <div className="
                 pagination-container">
@@ -598,11 +726,11 @@ function Contacts() {
                   <ul className="pagination">
                     <li className={`page-item
                       ${page === 0 ?
-                        'disabled' : ''}`}>
+                        'disabled':''}`}>
                       <button
                         className="page-link"
                         onClick={() =>
-                          setPage(p => p - 1)}>
+                          setPage(p => p-1)}>
                         ← Prev
                       </button>
                     </li>
@@ -611,22 +739,22 @@ function Contacts() {
                       <li key={i}
                         className={`page-item
                           ${page === i ?
-                            'active' : ''}`}>
+                            'active':''}`}>
                         <button
                           className="page-link"
                           onClick={() =>
                             setPage(i)}>
-                          {i + 1}
+                          {i+1}
                         </button>
                       </li>
                     ))}
                     <li className={`page-item
-                      ${page === totalPages - 1
-                        ? 'disabled' : ''}`}>
+                      ${page===totalPages-1 ?
+                        'disabled':''}`}>
                       <button
                         className="page-link"
                         onClick={() =>
-                          setPage(p => p + 1)}>
+                          setPage(p => p+1)}>
                         Next →
                       </button>
                     </li>
@@ -638,16 +766,15 @@ function Contacts() {
         )}
       </div>
 
-      {/* Create Modal */}
+      {/* ── Create Modal ── */}
       {showCreate && (
         <div className="modal show d-block"
           style={{backgroundColor:
             'rgba(0,0,0,0.5)'}}>
           <div className="modal-dialog
-            modal-dialog-centered
-            modal-lg">
+            modal-dialog-centered modal-lg">
             <div className="modal-content"
-              style={{borderRadius: '16px'}}>
+              style={{borderRadius:'16px'}}>
               <div className="modal-header
                 modal-header-custom">
                 <h5 className="modal-title">
@@ -668,16 +795,15 @@ function Contacts() {
         </div>
       )}
 
-      {/* Edit Modal */}
+      {/* ── Edit Modal ── */}
       {showEdit && (
         <div className="modal show d-block"
           style={{backgroundColor:
             'rgba(0,0,0,0.5)'}}>
           <div className="modal-dialog
-            modal-dialog-centered
-            modal-lg">
+            modal-dialog-centered modal-lg">
             <div className="modal-content"
-              style={{borderRadius: '16px'}}>
+              style={{borderRadius:'16px'}}>
               <div className="modal-header
                 modal-header-custom">
                 <h5 className="modal-title">
@@ -698,7 +824,7 @@ function Contacts() {
         </div>
       )}
 
-      {/* Delete Modal */}
+      {/* ── Delete Modal ── */}
       {showDelete && (
         <div className="modal show d-block"
           style={{backgroundColor:
@@ -706,12 +832,13 @@ function Contacts() {
           <div className="modal-dialog
             modal-dialog-centered">
             <div className="modal-content"
-              style={{borderRadius: '16px'}}>
+              style={{borderRadius:'16px'}}>
               <div className="modal-header"
                 style={{
-                  background: '#dc3545',
-                  color: 'white',
-                  borderRadius: '16px 16px 0 0'
+                  background:'#dc3545',
+                  color:'white',
+                  borderRadius:
+                    '16px 16px 0 0'
                 }}>
                 <h5 className="modal-title">
                   🗑️ Delete Contact
@@ -722,22 +849,22 @@ function Contacts() {
                   className="btn-close
                     btn-close-white"/>
               </div>
-              <div className="modal-body p-4
-                text-center">
-                <div style={{fontSize: '48px'}}>
+              <div className="modal-body
+                p-4 text-center">
+                <div style={{fontSize:'48px'}}>
                   ⚠️
                 </div>
                 <h5 className="mt-3">
                   Are you sure?
                 </h5>
                 <p className="text-muted">
-                  You are about to delete{' '}
+                  Delete{' '}
                   <strong>
                     {selectedContact?.firstName}
                     {' '}
                     {selectedContact?.lastName}
-                  </strong>
-                  . This cannot be undone!
+                  </strong>?
+                  This cannot be undone!
                 </p>
                 <div className="d-flex gap-2
                   justify-content-center mt-4">
@@ -747,8 +874,8 @@ function Contacts() {
                     className="btn
                       btn-outline-secondary"
                     style={{
-                      borderRadius: '8px',
-                      padding: '10px 24px'
+                      borderRadius:'8px',
+                      padding:'10px 24px'
                     }}>
                     Cancel
                   </button>
@@ -757,9 +884,9 @@ function Contacts() {
                     disabled={formLoading}
                     className="btn btn-danger"
                     style={{
-                      borderRadius: '8px',
-                      padding: '10px 24px',
-                      fontWeight: '600'
+                      borderRadius:'8px',
+                      padding:'10px 24px',
+                      fontWeight:'600'
                     }}>
                     {formLoading ? (
                       <>
