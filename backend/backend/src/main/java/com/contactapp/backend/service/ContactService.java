@@ -30,18 +30,28 @@ public class ContactService {
             String email, int page, int size, String search) {
 
         User user = getUser(email);
-        Pageable pageable = PageRequest.of(page, size, 
+        Pageable pageable = PageRequest.of(
+            page, size,
             Sort.by("firstName").ascending());
 
         Page<Contact> contacts;
-        if (search != null && !search.trim().isEmpty()) {
+
+        if (search != null &&
+            !search.trim().isEmpty()) {
+            // Search by name, email OR phone!
             contacts = contactRepository
-                .searchContacts(user.getId(), search, pageable);
-            log.debug("Searching contacts for user {} with: {}", 
+                .searchContacts(
+                    user.getId(),
+                    search.trim(),
+                    pageable);
+            log.debug(
+                "Searching contacts for " +
+                "user {} with query: {}",
                 email, search);
         } else {
             contacts = contactRepository
-                .findByUserId(user.getId(), pageable);
+                .findByUserId(
+                    user.getId(), pageable);
         }
 
         return contacts.map(this::mapToResponse);
